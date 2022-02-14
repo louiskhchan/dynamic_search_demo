@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="zh-HK" style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', 'PingFang', 'Noto Sans HK', sans-serif;">
 
 <head>
-    <title>Target-rate effect in continuous visual search -- Online demo</title>
+    <title>Test place</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -11,21 +11,22 @@
 
 </head>
 
-<body style="font-size:larger;">
+<body>
 
-    <script src="chroma.min.js"></script>
     <script src="vs8/vs8.js"></script>
     <script src="vs8/vs8_expt.js"></script>
+    <script src="vs8/vs8_expt_html.js"></script>
     <script src="vs8/vs8_expt_draw.js"></script>
     <script src="vs8/vs8_media.js"></script>
-    <script src="path_inventory.js"></script>
-    <script src="expt_color.js"></script>
-    <script src="expt.js"></script>
-    <script src="index.js"></script>
+    <script>
+        let hits = [];
+        let hitrt = hits.reduce((acc, response) => acc + response.rt, 0) / hits.length;
 
-	<div class="instructiondiv" style="padding-top: 35px;z-index:9;position:absolute">
-		<button onclick="location.href='../';">Back</button>
-	</div>
+        let html = hitrt;
+
+        addhtml(document.body, html);
+    </script>
+
 
 </body>
 

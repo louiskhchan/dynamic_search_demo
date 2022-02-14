@@ -3,52 +3,6 @@ var colorspeed = 100 / 1000;
 
 var d1;
 
-async function do_upload(expt) {
-	let upload_result;
-
-	let d1upper = add({ ele: d1, tag: 'div', class: 'instructiondiv' });
-	//display result summary
-	{
-		addhtml(d1upper, "<h3>你的實驗結果:</h3>");
-		let formatnum = function (n) {
-			if (typeof (n) == 'number') return n.toFixed(0);
-			else return '--';
-		};
-
-		let summary = expt.summary.results;
-		let summarytable = {
-			'頻密': {
-				'反應時間': formatnum(summary.freq_hitrt) + '毫秒',
-				'成功率': formatnum(summary.freq_hitrate * 100) + '%',
-				'錯誤回應': formatnum(summary.freq_fa)
-			},
-			'稀疏': {
-				'反應時間': formatnum(summary.rare_hitrt) + '毫秒',
-				'成功率': formatnum(summary.rare_hitrate * 100) + '%',
-				'錯誤回應': formatnum(summary.rare_fa)
-			}
-		};
-
-		let table = addtable(d1upper, summarytable);
-	}
-	//upload data
-	for (; ;) {
-		addhtml(d1upper, '<h2>正在上載數據...</h2>');
-		upload_result = await upload({
-			url: 'receive.php',
-			body: JSON.stringify(expt)
-		});
-		if (upload_result.success) {
-			addhtml(d1upper, "<h2>上載完成！謝謝你參與這實驗。</h2>");
-			await wait_forever();
-		} else {
-			addhtml(d1upper, "<h2>上載失敗。請檢查連線，然後再試一次</h2>");
-			let but = add({ ele: d1upper, tag: 'button', text: '再試一次' });
-			await wait_event({ ele: but, type: 'click' });
-		}
-		d1upper.remove();
-	}
-}
 
 /**@param { {context:CanvasRenderingContext2D}} c */
 async function run_trial(c, trialspec, responses) {
@@ -211,7 +165,7 @@ async function run_trial(c, trialspec, responses) {
 
 async function p_run_trial(trialspec, responses) {
 	//set up canvas
-	let canvas = add({ ele: d1, tag: 'canvas', style: 'width:100vw;height:100vh;position:absolute;cursor:none;background-color:' + chroma.lch(lightness, 0, 0) + ';' });
+	let canvas = add({ ele: d1, tag: 'canvas', style: 'width:100vw;height:100vh;position:absolute;background-color:' + chroma.lch(lightness, 0, 0) + ';' });
 
 	//set up canvas and get context
 	let c = expt_setup_canvas(canvas, 'none');
@@ -229,25 +183,23 @@ async function do_expt(expt, freq, blocki) {
 	{ //expt instruction
 		let d1upper = add({ ele: d1, tag: 'div', class: 'instructiondiv' });
 		addhtml(d1upper, `
-		<h2>實驗：第${(blocki + 1)}部份</h2>
-		<h3>做法</h3>
-		<p->這個實驗中，你會看到一些不同顏色的圓點在變色。 </p->
-		<p->你需要留意有沒有這種<b>綠色</b>: <span style='background-color:${chroma.lch(lightness, sat, tarhue)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>。每當你看見它，請按一次<key->space</key-> 鍵。</p->
-		其他顏色，例如：
+		<h2>Target-rate effect in continuous visual search</h2>
+		<h3>Online demo of Figure 1</h3>
+		<p->This is an online demo of the stimulus used in Experiment 1.</p->
+		<p->In Experiment 1, the task was to detect a <b>green</b> color: <span style='background-color:${chroma.lch(lightness, sat, tarhue)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>. The participant has to press the <key->space</key-> key once when they saw this color, as quickly and as accurately as possible.</p->
+		<p->Other colors, such as: 
 		<span style='background-color:${chroma.lch(lightness, sat, tarhue - 2 * huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 		<span style='background-color:${chroma.lch(lightness, sat, tarhue - huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 		<span style='background-color:${chroma.lch(lightness, sat, tarhue + huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 		<span style='background-color:${chroma.lch(lightness, sat, tarhue + 2 * huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-		，都不算是綠色。如果你沒有看見綠色，請不要按鍵。</p->
-		<h3>注意</h3>
-		<p->這部份需時15分鐘。</p->
-		<p->在這部份中，綠色會出現得比較<b>${freq == 1 ? "頻密" : "稀疏"}</b>。</p->
-		<p->反應速度和準確度是<b>同樣重要</b>的。</p->
+		, were not the target green color, and the participants were reminded not to respond to these colors.</p->
+		<p->This demo mimics the <b>frequent target condition</b> of the experiment.</p->
+		<p->Press start to start the demo. No data will be recorded or analyzed.</p->
 		<br>
 		`);
 
-		let trybut = add({ ele: d1upper, tag: 'button', text: '開始' });
-		trybut.focus();
+		let trybut = add({ ele: d1upper, tag: 'button', text: 'Start' });
+//		trybut.focus();
 		await wait_event({ ele: trybut, type: 'click' });
 		d1upper.remove();
 	}
@@ -270,192 +222,7 @@ async function do_expt(expt, freq, blocki) {
 	}
 }
 
-//analyze data
-function do_analysis(expt) {
-	//variable for condition summaries 
-	let conds = { freq: {}, rare: {} };
-	for (let key in conds) {
-		let cond = conds[key];
-		let responses = expt.responses.filter(response => response.cond == key);
-		let hits = responses.filter(response => response.type == 'hit');
-		cond.hit = hits.length;
-		cond.hitrt = 0;
-		for (let response of hits) cond.hitrt += response.rt;
-		cond.hitrt /= cond.hit;
-		cond.miss = responses.filter(response => response.type == 'miss').length;
-		cond.fa = responses.filter(response => response.type == 'fa').length;
-	}
 
-	//summary, each key each file. define between subj var first
-	let summary = {
-		results: {
-			id: expt.id,
-			freq_first: expt.freq_first
-		}
-	};
-	//for each condition, calc subj accumulated data to summary
-	for (let key in conds) {
-		let cond = conds[key];
-		summary.results[key + "_hitrt"] = cond.hitrt;
-		summary.results[key + "_hitrate"] = cond.hit / (cond.hit + cond.miss);
-		summary.results[key + "_missrate"] = cond.miss / (cond.hit + cond.miss);
-		summary.results[key + "_fa"] = cond.fa;
-	}
-	//output
-	expt.summary = summary;
-}
-
-/** 0 is rare, 1 is freq 
- * @returns {Promise<void>} */
-async function do_practice(expt) {
-	{
-		let d1upper = add({ ele: d1, tag: 'div', class: 'instructiondiv mediumfont', style: 'padding-top:20px' });
-		addhtml(d1upper, `
-    <h2>練習</h2>
-    <p->首先，我們先練習一下這個實驗。</p->
-    <p->這個實驗中，你會看到一些不同顏色的圓點在變色。 </p->
-    <p->你需要留意有沒有這種<b>綠色</b>: <span style='background-color:${chroma.lch(lightness, sat, tarhue)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>。每當你看見它，請按一次<key->space</key-> 鍵。</p->
-    其他顏色，例如：
-	<span style='background-color:${chroma.lch(lightness, sat, tarhue - 2 * huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-	<span style='background-color:${chroma.lch(lightness, sat, tarhue - huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-	<span style='background-color:${chroma.lch(lightness, sat, tarhue + huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-	<span style='background-color:${chroma.lch(lightness, sat, tarhue + 2 * huezone)};'>&nbsp;&nbsp;&nbsp;&nbsp;</span>
-	，都不算是綠色。如果你沒有看見綠色，請不要按鍵。</p->
-    <halfem-></halfem->
-    `);
-
-		//set up canvas
-		let canvas = add({ ele: d1upper, tag: 'canvas', style: 'width:100%;height:100%;border:2px solid darkgrey;border-radius:5px;cursor:none;background-color:' + chroma.lch(lightness, 0, 0) + ';' });
-
-		let d1lower = add({ ele: d1upper, tag: 'div', style: 'width:100%;font-size: medium;' });
-		let feedback = add({ ele: d1lower, tag: 'p-' });
-		feedback.innerHTML = "<p->如果明白上述做法，請按<key->space</key->鍵開始練習。是次練習約長半分鐘。</p->";
-
-		//set up canvas and get context
-		let c = expt_setup_canvas(canvas, 'none');
-		let [cp, cx, cy, cw, ch, context] = [c.cp, c.cx, c.cy, c.cw, c.ch, c.context];
-
-		//specify correct and incorrect callback for practice feedback
-		let hitcb = function () { feedback.innerHTML += '正確。'; };
-		let facb = function () { feedback.innerHTML += '錯誤。'; };
-
-		//experiment loop
-		let trialspec = {
-			numtar: 3,
-			duration: 30000,
-			stopduration: stopduration,
-			colorspeed: colorspeed,
-			hitcb: hitcb,
-			facb: facb,
-			cond: 'practice'
-		};
-		let responses = [];
-
-		let ndone = 0;
-		let miss = 2;
-		let fa = 2;
-		while (miss > 0 || fa > 0) {
-			if (ndone > 0) {
-				let html = "不夠準確。<b>你";
-				if (miss > 0) html += "錯過了" + miss + "次";
-				if (miss > 0 && fa > 0) html += "，";
-				if (fa > 0) html += "多按了" + fa + "次";
-				html += "。</b>請再練習一次。";
-				html += "<p->按<key->space</key->鍵繼續。</p->";
-				feedback.innerHTML = html;
-			}
-			ndone++;
-			while ((await wait_event({ type: 'keydown' })).code != 'Space');
-			feedback.innerHTML = "";
-			responses = [];
-			await run_trial(c, trialspec, responses);
-			miss = responses.filter(response => (response.type == 'miss')).length;
-			fa = responses.filter(response => (response.type == 'fa')).length;
-		}
-
-		//good job
-		feedback.innerHTML = `做得好。現在進入實驗環節。按<key->space</key->鍵繼續。</p->`;
-		while ((await wait_event({ type: 'keydown' })).code != 'Space');
-
-		//remove welcome canvas
-		feedback.remove();
-		d1upper.remove();
-		canvas.remove();
-		d1lower.remove();
-	}
-	{ //starting instruction
-		let d1upper = add({ ele: d1, tag: 'div', class: 'instructiondiv' });
-		addhtml(d1upper, `
-		<h2>實驗</h2>
-		<p->
-		本實驗總共有2部份，為時約30分鐘。在每一部份之間，你可以先休息一下才繼續。</p-><p->
-		請確保這段時間不會受外界騷擾。</p-><p->
-		在實驗結束前，請不要離開全螢幕模式。	
-		</p->
-		`);
-
-		let trybut = add({ ele: d1upper, tag: 'button', text: '繼續' });
-		trybut.focus();
-		await wait_event({ ele: trybut, type: 'click' });
-		d1upper.remove();
-	}
-
-}
-
-//show welcome screen
-async function do_welcome(expt) {
-	let d2 = add({ ele: d1, tag: 'div', class: 'instructiondiv' });
-	addhtml(d2, `
-    <h1>浸大心理</h1>
-    <h2>視覺認知研究</h2>
-    <h3>實驗編號: COLOR1</h3>
-    <br>
-    請用鍵盤按 <key->space</key-> 開始
-    <br>
-    <br>
-    請注意：現在即將進入全螢幕。在未完成實驗前，請<b>不要離開</b>全螢幕模式。
-        `);
-
-	//press space
-	let space_event;
-	while ((space_event = await wait_event({ type: 'keydown' })).code != 'Space');
-	d2.remove();
-
-	//check if response timing correct
-	if (Math.abs(space_event.timeStamp - performance.now()) > 1000) {
-		let d2 = add({ ele: d1, tag: 'div', class: 'instructiondiv' });
-		addhtml(d2, `
-            <h2>Sorry</h2>
-            This computer is not supported. Please try another computer.
-        `);
-		await wait_forever();
-	}
-
-	//save timing diagnostics
-	expt.timing_diag = {
-		keydown_ts: space_event.timeStamp,
-		perfnow_ts: performance.now(),
-		frameout_ts: await wait_frame_out()
-	};
-
-	//go full screen
-	d1.classList.add('full');
-	let fullscreenok = await openFullscreen();
-	if (!fullscreenok) {
-		addhtml(b1, "<br><br><span style='color:darkred;'>Sorry. Can't enter fullscreen on your computer.</span>");
-		wait_forever();
-	}
-
-}
-
-//consent form
-async function consent_form(expt) {
-	let html = '<h1>實驗同意書</h1><h2>Hong Kong Baptist University</h2> <h2>CONSENT TO PARTICIPATE IN RESEARCH</h2> <h3>Human performance in dynamic visual search</h3>  <p>You are invited to participate in a research study conducted by Louis Chan from the Psychology Unit of the Hong Kong Baptist University. The aim of this research is to study the characteristics of human performance in real-life visual search. This experiment will be a computer-based task, in which you monitor for a particular color in a number of color-changing circles. You will make your responses by using a computer keyboard. The whole experiment will last for about 30 minutes.</p>  <p>This experiment should not cause any psychological or physical hazard to you. In order to minimize fatigue or discomforts, you are advised to take short breaks between the two experimental blocks.</p> <p>Your participation is voluntary. If you decide to participate, you are free to withdraw at any time. Upon completion of the experiment, you will receive a monetary compensation of HK$50. </p><p>Any personal information obtained in this study will remain confidential. Data recorded in the experiment will be used for research purposes only. </p>  <h2>QUESTIONS AND CONCERNS</h2> <p>If you have any questions or concerns about this research, please feel free to contact Louis Chan by email (clouis@hkbu.edu.hk) or by phone (3411-3063). If you have questions about your rights as a research participant, please contact Research Ethics Committee by email (hkbu_rec@hkbu.edu.hk) or by mail to Graduate School, Hong Kong Baptist University, Kowloon Tong, Hong Kong.</p>  <h2>DECLARATION</h2> <p>I understand the procedures described above and agree to participate in this study.</p><p> <button id="consentbut">AGREE</button>  </p>';
-	let d1upper = add({ ele: d1, tag: 'div', class: 'instructiondiv mediumfont' });
-	addhtml(d1upper, html);
-	await wait_event({ ele: document.getElementById("consentbut"), type: 'click' });
-	d1upper.remove();
-}
 
 //entry point
 async function start_expt() {
@@ -489,18 +256,11 @@ async function start_expt() {
 		responses: []
 	};
 
-	// await do_welcome(expt);
-	// await consent_form(expt);
-	// await do_practice(expt);
-	await do_expt(expt, expt.freq_first, 0);
-	// await do_expt(expt, 1 - expt.freq_first, 1);
+	while(1){
+		await do_expt(expt, expt.freq_first, 0);
+		// await do_expt(expt, 1 - expt.freq_first, 1);
+	}
 
-	// //leave fullscreen
-	// expt.leavefullscreenok = await closeFullscreen();
-	// do_analysis(expt);
-
-	// //upload
-	// await do_upload(expt);
 
 	// d1.remove();
 }
